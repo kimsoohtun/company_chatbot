@@ -1,9 +1,6 @@
 import streamlit as st
 import pandas as pd
-import pdfplumber
-from docx import Document
-import google.generativeai as genai
-
+# (기존 import 생략...)
 
 # --- 관리자 설정 (Secrets에서 불러오기) ---
 # 로컬 테스트 시에는 '기본값'을 사용하고, 배포 후에는 Secrets를 사용합니다.
@@ -13,15 +10,17 @@ try:
     genai.configure(api_key=api_key)
 except:
     st.warning("관리자 설정을 불러올 수 없습니다. (로컬 테스트 중이신가요?)")
-    api_key = ""
+    api_key = "AIzaSyB1yXnTEj-404veMe4k9zGNicKuAKANm7c"
     gsheet_url = ""
-
 
 # --- UI 수정: 사이드바 숨기기 ---
 # 이제 직원들에게는 아무것도 보여줄 필요가 없으므로 사이드바 기능을 제거하거나 간소화합니다.
 st.title("🤖 사내 규정 안내 챗봇")
 st.info("안녕하세요! 무엇이 궁금하신가요? (연차, 경조사, 전산자원 운용 등)")
-st.set_page_config(page_title="사내 규정 챗봇", layout="wide")
+
+# (이후 파일 로드 로직...)
+# 매번 파일 업로드하는 대신, 특정 폴더의 파일을 자동으로 읽게 하거나 
+# 구글 시트만 활용하는 방식으로 변경하면 더 깔끔합니다.
 
 
 # --- 2. 텍스트 추출 로직 ---
@@ -90,3 +89,4 @@ if prompt := st.chat_input("질문을 입력하세요"):
             except Exception as e:
 
                 st.error(f"오류 발생: {e}")
+
