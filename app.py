@@ -4,21 +4,25 @@ import pdfplumber
 from docx import Document
 import google.generativeai as genai
 
-# --- 1. 설정 및 UI ---
-st.set_page_config(page_title="사내 규정 챗봇", layout="wide")
-st.title("🤖 2026 통합 규정 안내 챗봇")
 
-with st.sidebar:
-    api_key = st.text_input("Gemini API Key를 입력하세요", type="password")
-    if api_key:
-        genai.configure(api_key=api_key)
-    
-    st.divider()
-    st.subheader("파일 업로드")
-    uploaded_files = st.file_uploader("문서 선택 (PDF, XLSX, DOCX)", 
-                                    accept_multiple_files=True, 
-                                    type=['pdf', 'xlsx', 'docx'])
-    gsheet_url = st.text_input("구글 시트 URL")
+# --- 관리자 설정 (Secrets에서 불러오기) ---
+# 로컬 테스트 시에는 '기본값'을 사용하고, 배포 후에는 Secrets를 사용합니다.
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    gsheet_url = st.secrets["GSHEET_URL"]
+    genai.configure(api_key=api_key)
+except:
+    st.warning("관리자 설정을 불러올 수 없습니다. (로컬 테스트 중이신가요?)")
+    api_key = ""
+    gsheet_url = ""
+
+
+# --- UI 수정: 사이드바 숨기기 ---
+# 이제 직원들에게는 아무것도 보여줄 필요가 없으므로 사이드바 기능을 제거하거나 간소화합니다.
+st.title("🤖 사내 규정 안내 챗봇")
+st.info("안녕하세요! 무엇이 궁금하신가요? (연차, 경조사, 전산자원 운용 등)")
+st.set_page_config(page_title="사내 규정 챗봇", layout="wide")
+
 
 # --- 2. 텍스트 추출 로직 ---
 def extract_text(files, g_url):
@@ -84,4 +88,5 @@ if prompt := st.chat_input("질문을 입력하세요"):
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
+
                 st.error(f"오류 발생: {e}")
