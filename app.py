@@ -12,8 +12,8 @@ try:
     gsheet_url = st.secrets["GSHEET_URL"]
 except:
     # 로컬 테스트 환경
-    api_key = "AIzaSy..." # 실제 키를 여기 적거나 빈칸으로 두세요
-    gsheet_url = "https://docs.google.com/spreadsheets/d/..." 
+    api_key = "" # 실제 키를 여기 적거나 빈칸으로 두세요
+    gsheet_url = "" 
 
 if api_key:
     genai.configure(api_key=api_key)
@@ -96,3 +96,4 @@ if prompt := st.chat_input("궁금한 규정을 물어보세요."):
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
                 st.error(f"오류가 발생했습니다: {e}")
+
