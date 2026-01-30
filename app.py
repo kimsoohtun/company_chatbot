@@ -76,7 +76,7 @@ if prompt := st.chat_input("궁금한 규정을 물어보세요."):
             try:
                 # 404 에러 방지를 위한 가장 확실한 모델 호출 방식
                 # 1.5-flash가 안 될 경우를 대비해 모델명을 명확히 지정합니다.
-                model = genai.GenerativeModel('gemini-1.0-pro')
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 
                 # 429 에러 방지 (입력 데이터 제한)
                 safe_context = knowledge_base[:70000]
@@ -108,4 +108,5 @@ if prompt := st.chat_input("궁금한 규정을 물어보세요."):
                     st.error("⚠️ 너무 많은 요청이 들어왔습니다. 1분 뒤에 다시 시도해 주세요.")
                 else:
                     st.error(f"오류가 발생했습니다: {e}")
+
 
