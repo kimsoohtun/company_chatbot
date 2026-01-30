@@ -78,37 +78,44 @@ if prompt := st.chat_input("궁금한 규정을 물어보세요."):
     if not api_key:
         st.error("관리자 설정(API Key)이 필요합니다.")
     else:
+        # 사용자 메시지 기록 및 출력
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
             try:
-                # 429 오류 방지를 위한 지식 베이스 양 제한 (한글 약 7만 자)
+                # 404 에러 방지를 위해 모델명을 'gemini-1.5-flash'로 정확히 지정합니다.
+                model = genai.GenerativeModel('gemini-1.5-flash') 
+                
+                # 429 에러 방지를 위해 지식 베이스의 양을 제한합니다.
                 safe_context = knowledge_base[:70000]
                 
-                model = genai.GenerativeModel('gemini-1.5-flash') 
                 full_query = f"""너는 사내 규정 전문가야. 아래 제공된 [지식 베이스]를 바탕으로 답변해줘.
-답변 끝에 '참고 문서: [문서명]'을 꼭 적어줘. 
-모르는 내용은 반드시 '인사팀에 문의하세요'라고 답변해.
-
-[지식 베이스(일부)]
-{safe_context}
-
-질문: {prompt}"""
+                답변 끝에 '참고 문서: [문서명]'을 꼭 적어줘. 
+                모르는 내용은 반드시 '인사팀에 문의하세요'라고 답변해. 
                 
+                [지식 베이스(일부)]
+                {safe_context}
+                
+                질문: {prompt}"""
+                
+                # 답변 생성
                 response = model.generate_content(full_query)
                 
-                # 답변 출력 및 저장 (이 부분이 빠져있어서 에러가 났었습니다)
+                # 결과 출력 및 저장
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
                 
             except Exception as e:
-                # 429 에러(할당량 초과) 발생 시 처리
+                # 에러 메시지에 따른 맞춤형 안내
                 if "429" in str(e):
-                    st.error("⚠️ 한꺼번에 너무 많은 정보를 처리하고 있습니다. 약 1분 뒤에 다시 질문해 주세요.")
+                    st.error("⚠️ 요청이 너무 많습니다. 약 1분 뒤에 다시 시도해 주세요.")
+                elif "404" in str(e):
+                    st.error("⚠️ 모델 설정 오류입니다. 모델명을 'gemini-1.5-flash'로 확인해 주세요.")
                 else:
                     st.error(f"오류가 발생했습니다: {e}")
+
 
 
 
