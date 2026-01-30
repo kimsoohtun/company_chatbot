@@ -77,26 +77,24 @@ for msg in st.session_state.messages:
 if prompt := st.chat_input("궁금한 규정을 물어보세요."):
     # ... (생략: 메시지 추가 로직) ...
 
-    with st.chat_message("assistant"):
-        try:
-            model = genai.GenerativeModel('gemini-2.0-flash') # 모델명을 최신 안정 버전으로 권장
-            
-            # [수정 핵심] 전체 지식 중 앞부분 약 5~7만 자만 사용 (에러 방지용)
-            # 한글 기준 약 70,000자는 무료 한도 내에서 매우 안전하게 작동합니다.
-            safe_context = knowledge_base[:70000] 
-            
-            full_query = f"""너는 사내 규정 전문가야. 아래 제공된 [지식 베이스]를 바탕으로만 답변해줘.
-            답변 끝에는 '참고 문서: [문서명]'을 꼭 적어줘. 
-            만약 지식 베이스에 없는 내용이라면 '인사팀에 문의하세요'라고 답변해.
-            
-            [지식 베이스(일부)]
-            {safe_context}
-            
-            질문: {prompt}"""
-            
-            response = model.generate_content(full_query)
-            st.markdown(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
+with st.chat_message("assistant"):
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash') # 최신 안정 버전 사용 권장
+        
+        # [핵심] 전체 지식 중 앞부분 약 5~7만 자만 잘라서 보냅니다.
+        # 한글 기준 약 70,000자는 무료 한도 내에서 매우 안전하게 작동합니다.
+        safe_context = knowledge_base[:70000] 
+        
+        full_query = f"""너는 사내 규정 전문가야. 아래 제공된 [지식 베이스]를 바탕으로 답변해줘.
+        답변 끝에 '참고 문서: [문서명]'을 꼭 적어줘. 
+        모르는 내용은 반드시 '인사팀에 문의하세요'라고 답변해.
+        
+        [지식 베이스(일부)]
+        {safe_context}
+        
+        질문: {prompt}"""
+        
+        response = model.generate_content(full_query)
             
         except Exception as e:
             # 429 에러가 발생했을 때 사용자에게 친절하게 안내
@@ -104,5 +102,6 @@ if prompt := st.chat_input("궁금한 규정을 물어보세요."):
                 st.error("⚠️ 한꺼번에 너무 많은 정보를 처리하고 있습니다. 약 1분 뒤에 다시 질문해 주세요.")
             else:
                 st.error(f"오류가 발생했습니다: {e}")
+
 
 
