@@ -73,7 +73,8 @@ if prompt := st.chat_input("질문을 입력하세요."):
                 except Exception as e2:
                     st.error(f"⚠️ 모델 호출 실패: {e2}")
             elif "429" in str(e):
-                [cite_start]st.error("⚠️ 너무 많은 요청이 들어왔습니다. 1분 뒤에 다시 시도해 주세요.")
+                st.error("⚠️ 너무 많은 요청이 들어왔습니다. 1분 뒤에 다시 시도해 주세요.")
             else:
                 st.error(f"⚠️ 오류 발생: {e}")
+
 
