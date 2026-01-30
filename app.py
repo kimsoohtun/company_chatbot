@@ -63,8 +63,8 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# --- 4. 질문 처리 (이 부분이 핵심입니다) ---
-# 사용자가 입력창에 글을 썼을 때만 prompt 변수가 정의됩니다.
+# --- 4. 질문 처리 ---
+# 사용자가 입력을 넣었을 때만 이 블록이 실행되므로 'prompt' 정의 오류가 발생하지 않습니다.
 if prompt := st.chat_input("궁금한 규정을 물어보세요."):
     if not api_key:
         st.error("관리자 설정(API Key)이 필요합니다.")
@@ -76,13 +76,13 @@ if prompt := st.chat_input("궁금한 규정을 물어보세요."):
 
         with st.chat_message("assistant"):
             try:
-                # 404 오류 방지: 'gemini-1.5-flash' 사용 (안정적 버전)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # 404 오류 해결: 모델 경로를 'models/gemini-1.5-flash'로 명확히 지정
+                model = genai.GenerativeModel('models/gemini-1.5-flash')
                 
-                # 429 오류 방지: 지식 베이스의 양을 한글 약 7만 자로 제한
+                # 429 오류 해결: 지식 베이스의 양을 안전한 범위(약 7만 자)로 제한
                 safe_context = knowledge_base[:70000]
                 
-                full_query = f"""너는 사내 규정 전문가야. 아래 지식 베이스를 바탕으로 답변해줘.
+                full_query = f"""너는 사내 규정 전문가야. 아래 제공된 [지식 베이스]를 바탕으로 답변해줘.
 답변 끝에 '참고 문서: [문서명]'을 꼭 적어줘. 
 모르는 내용은 반드시 '인사팀에 문의하세요'라고 답변해.
 
@@ -91,14 +91,20 @@ if prompt := st.chat_input("궁금한 규정을 물어보세요."):
 
 질문: {prompt}"""
                 
+                # 답변 생성 및 출력
                 response = model.generate_content(full_query)
-                
-                # 답변 출력 및 기록
                 st.markdown(response.text)
+                
+                # 답변 기록 저장
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
                 
             except Exception as e:
-                if "429" in str(e):
-                    st.error("⚠️ 너무 많은 요청이 들어왔습니다. 1분 뒤에 다시 질문해 주세요.")
+                # 상세 에러 메시지 분석 및 안내
+                error_msg = str(e)
+                if "429" in error_msg:
+                    st.error("⚠️ 요청 한도를 초과했습니다. 약 1분 뒤에 다시 시도해 주세요.")
+                elif "404" in error_msg:
+                    # 여전히 404가 날 경우를 대비해 대안 모델명 시도 안내
+                    st.error("⚠️ 모델을 찾을 수 없습니다. 모델명을 'gemini-1.5-flash' 또는 'gemini-pro'로 변경해 보세요.")
                 else:
-                    st.error(f"오류가 발생했습니다: {e}")
+                    st.error(f"오류가 발생했습니다: {error_msg}")
