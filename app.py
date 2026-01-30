@@ -55,8 +55,31 @@ if prompt := st.chat_input("궁금한 사내 규정을 물어보세요."):
 
     with st.chat_message("assistant"):
         try:
-            # 404 오류 해결: 모델 경로를 명시적으로 호출합니다.
+            # [cite_start]404 오류 해결: 모델 경로를 명시적으로 호출합니다. [cite: 1]
             model = genai.GenerativeModel('gemini-1.5-flash')
             
-            # 429 오류 해결: 토큰 한도를 넘지 않게 지식 베이스를 자릅니다.
-            # 한글 기준 약 50,000자 내외가
+            # [cite_start]429 오류 해결: 토큰 한도를 넘지 않게 지식 베이스를 자릅니다. [cite: 3]
+            # [cite_start]한글 기준 약 50,000자 내외가 무료 티어에서 가장 안정적입니다. [cite: 2]
+            safe_context = knowledge_base[:50000] 
+            
+            full_query = f"""너는 사내 규정 전문가야. 아래 [지식 베이스]의 내용만 참고해서 답변해줘.
+만약 지식 베이스에 없는 내용이라면 '해당 내용은 인사팀에 문의하세요'라고 답변해.
+
+[지식 베이스]
+{safe_context}
+
+질문: {prompt}"""
+            
+            # [cite_start]AI 답변 생성 [cite: 4]
+            response = model.generate_content(full_query)
+            
+            if response.text:
+                st.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+            
+        except Exception as e:
+            # [cite_start]429(할당량 초과) 발생 시 별도 안내 [cite: 5]
+            if "429" in str(e):
+                [cite_start]st.error("⚠️ 한꺼번에 너무 많은 질문이 들어왔습니다. 약 1분 뒤에 다시 시도해 주세요. [cite: 5]")
+            else:
+                st.error(f"⚠️ 오류가 발생했습니다: {e}")
