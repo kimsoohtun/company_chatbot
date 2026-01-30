@@ -5,25 +5,21 @@ from docx import Document
 import google.generativeai as genai
 import os
 
-# --- 1. 관리자 설정 (Secrets 우선) ---
+# --- 1. 관리자 설정 ---
 try:
-    # 배포 환경 (Streamlit Secrets 사용)
     api_key = st.secrets["GEMINI_API_KEY"]
     gsheet_url = st.secrets["GSHEET_URL"]
 except:
-    # 로컬 테스트 환경용 (비워두고 secrets.toml 사용 권장)
     api_key = "" 
     gsheet_url = "" 
 
 if api_key:
     genai.configure(api_key=api_key)
 
-# --- 2. 텍스트 추출 로직 (파일 경로 대응) ---
+# --- 2. 텍스트 추출 로직 ---
 def extract_text_from_folder(folder_path, g_url):
     text_data = ""
     sources = []
-    
-    # 지정된 폴더(data) 내의 파일들을 자동으로 읽기
     if os.path.exists(folder_path):
         for filename in os.listdir(folder_path):
             file_path = os.path.join(folder_path, filename)
@@ -34,7 +30,7 @@ def extract_text_from_folder(folder_path, g_url):
                         content = "\n".join([p.extract_text() for p in pdf.pages if p.extract_text()])
                 elif filename.endswith('.docx'):
                     content = "\n".join([p.text for p in Document(file_path).paragraphs])
-                elif filename.endswith('.xlsx'): 
+                elif filename.endswith('.xlsx'):
                     content = pd.read_excel(file_path).to_string()
                 
                 if content:
@@ -43,7 +39,6 @@ def extract_text_from_folder(folder_path, g_url):
             except Exception as e:
                 st.error(f"파일 {filename} 읽기 실패: {e}")
 
-    # 구글 시트 처리
     if g_url:
         try:
             csv_url = g_url.replace('/edit#gid=', '/export?format=csv&gid=') if "edit" in g_url else g_url
@@ -51,53 +46,59 @@ def extract_text_from_folder(folder_path, g_url):
             text_data += f"\n\n[출처: 구글 시트]\n{df.to_string()}"
             sources.append("구글 시트")
         except: pass
-        
     return text_data, sources
 
-# --- 3. UI 구성 (직원용 깔끔한 화면) ---
-# 사이드바를 기본적으로 닫아두고 메인 화면에 집중하게 합니다.
-st.set_page_config(page_title="사내 규정 챗봇", layout="centered", initial_sidebar_state="collapsed")
-st.title("🤖 2026 통합 규정 안내 챗봇")
-st.info("안녕하세요! 사내 규정에 대해 무엇이든 물어보세요.")
+# --- 3. UI 및 지식 로드 ---
+st.set_page_config(page_title="사내 규정 챗봇", layout="centered")
+st.title("🤖 사내 규정 안내 챗봇")
 st.markdown("---")
 
-# 지식 구축 (data 폴더를 자동으로 읽음)
-# GitHub 저장소에 'data' 폴더를 만들고 문서를 넣어두어야 합니다.
+# 지식 구축 (data 폴더 읽기)
 knowledge_base, source_list = extract_text_from_folder("data", gsheet_url)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 대화 내용 표시
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# --- 4. 질문 처리 ---
-with st.chat_message("assistant"):
-    try:
-        # 모델명 앞에 'models/'를 붙여 경로를 명확히 지정합니다.
-        # 1.5-flash가 안 될 경우 1.0-pro를 대안으로 시도할 수 있습니다.
-        model = genai.GenerativeModel('models/gemini-1.5-flash') 
-        
-        safe_context = knowledge_base[:70000] # 데이터 과부하 방지
-        
-        full_query = f"""너는 사내 규정 전문가야. 아래 지식 베이스를 바탕으로 답변해줘.
-        [지식 베이스]
-        {safe_context}
-        
-        질문: {prompt}"""
-        
-        response = model.generate_content(full_query)
-        st.markdown(response.text)
-        st.session_state.messages.append({"role": "assistant", "content": response.text})
-        
-    except Exception as e:
-        st.error(f"모델 호출 오류: {e}")
-   
+# --- 4. 질문 처리 (이 부분이 핵심입니다) ---
+# 사용자가 입력창에 글을 썼을 때만 prompt 변수가 정의됩니다.
+if prompt := st.chat_input("궁금한 규정을 물어보세요."):
+    if not api_key:
+        st.error("관리자 설정(API Key)이 필요합니다.")
+    else:
+        # 사용자 질문 표시 및 기록
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
+        with st.chat_message("assistant"):
+            try:
+                # 404 오류 방지: 'gemini-1.5-flash' 사용 (안정적 버전)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # 429 오류 방지: 지식 베이스의 양을 한글 약 7만 자로 제한
+                safe_context = knowledge_base[:70000]
+                
+                full_query = f"""너는 사내 규정 전문가야. 아래 지식 베이스를 바탕으로 답변해줘.
+답변 끝에 '참고 문서: [문서명]'을 꼭 적어줘. 
+모르는 내용은 반드시 '인사팀에 문의하세요'라고 답변해.
 
+[지식 베이스(일부)]
+{safe_context}
 
-
-
-
+질문: {prompt}"""
+                
+                response = model.generate_content(full_query)
+                
+                # 답변 출력 및 기록
+                st.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                
+            except Exception as e:
+                if "429" in str(e):
+                    st.error("⚠️ 너무 많은 요청이 들어왔습니다. 1분 뒤에 다시 질문해 주세요.")
+                else:
+                    st.error(f"오류가 발생했습니다: {e}")
