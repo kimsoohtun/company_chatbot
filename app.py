@@ -74,9 +74,6 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # --- 4. 질문 처리 ---
-if prompt := st.chat_input("궁금한 규정을 물어보세요."):
-    # ... (생략: 메시지 추가 로직) ...
-
 with st.chat_message("assistant"):
     try:
         model = genai.GenerativeModel('gemini-2.0-flash') # 최신 안정 버전 사용 권장
@@ -102,6 +99,7 @@ with st.chat_message("assistant"):
                 st.error("⚠️ 한꺼번에 너무 많은 정보를 처리하고 있습니다. 약 1분 뒤에 다시 질문해 주세요.")
             else:
                 st.error(f"오류가 발생했습니다: {e}")
+
 
 
 
