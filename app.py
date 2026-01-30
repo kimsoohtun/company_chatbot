@@ -74,47 +74,28 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # --- 4. 질문 처리 ---
-if prompt := st.chat_input("궁금한 규정을 물어보세요."):
-    if not api_key:
-        st.error("관리자 설정(API Key)이 필요합니다.")
-    else:
-        # 사용자 메시지 기록 및 출력
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+with st.chat_message("assistant"):
+    try:
+        # 모델명 앞에 'models/'를 붙여 경로를 명확히 지정합니다.
+        # 1.5-flash가 안 될 경우 1.0-pro를 대안으로 시도할 수 있습니다.
+        model = genai.GenerativeModel('models/gemini-1.5-flash') 
+        
+        safe_context = knowledge_base[:70000] # 데이터 과부하 방지
+        
+        full_query = f"""너는 사내 규정 전문가야. 아래 지식 베이스를 바탕으로 답변해줘.
+        [지식 베이스]
+        {safe_context}
+        
+        질문: {prompt}"""
+        
+        response = model.generate_content(full_query)
+        st.markdown(response.text)
+        st.session_state.messages.append({"role": "assistant", "content": response.text})
+        
+    except Exception as e:
+        st.error(f"모델 호출 오류: {e}")
+   
 
-        with st.chat_message("assistant"):
-            try:
-                # 404 에러 방지를 위해 모델명을 'gemini-1.5-flash'로 정확히 지정합니다.
-                model = genai.GenerativeModel('gemini-1.5-flash') 
-                
-                # 429 에러 방지를 위해 지식 베이스의 양을 제한합니다.
-                safe_context = knowledge_base[:70000]
-                
-                full_query = f"""너는 사내 규정 전문가야. 아래 제공된 [지식 베이스]를 바탕으로 답변해줘.
-                답변 끝에 '참고 문서: [문서명]'을 꼭 적어줘. 
-                모르는 내용은 반드시 '인사팀에 문의하세요'라고 답변해. 
-                
-                [지식 베이스(일부)]
-                {safe_context}
-                
-                질문: {prompt}"""
-                
-                # 답변 생성
-                response = model.generate_content(full_query)
-                
-                # 결과 출력 및 저장
-                st.markdown(response.text)
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-                
-            except Exception as e:
-                # 에러 메시지에 따른 맞춤형 안내
-                if "429" in str(e):
-                    st.error("⚠️ 요청이 너무 많습니다. 약 1분 뒤에 다시 시도해 주세요.")
-                elif "404" in str(e):
-                    st.error("⚠️ 모델 설정 오류입니다. 모델명을 'gemini-1.5-flash'로 확인해 주세요.")
-                else:
-                    st.error(f"오류가 발생했습니다: {e}")
 
 
 
